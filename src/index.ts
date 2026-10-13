@@ -685,7 +685,14 @@ async function pwFetch(url: string | URL, init?: RequestInit): Promise<Response>
   return fetchWithTimeout(url, init ?? {}, 'GWAS Catalog');
 }
 
-const BASE = 'https://www.ebi.ac.uk/gwas/rest/api';
+// The v1 REST API (/gwas/rest/api/...) was retired — live-confirmed 410 Gone,
+// fleet #2947, 2026-10-12: "This legacy GWAS Catalog REST API is no longer
+// available." EBI's migration guide (/gwas/docs/news/rest-api-v2-migration-guide,
+// published 2026-08-19) names the replacement directly: v2 drops the v1
+// findBy... search endpoints in favour of filters on the resource itself, uses
+// snake_case query params, and returns a redesigned response shape (still HAL,
+// different field names). Every endpoint below was re-verified live against v2.
+const BASE = 'https://www.ebi.ac.uk/gwas/rest/api/v2';
 const UA = 'pipeworx/1.0 (+https://pipeworx.io)';
 
 const tools: McpToolExport['tools'] = [
@@ -748,79 +755,104 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<un
 
 async function getSnp(args: Record<string, unknown>): Promise<unknown> {
   const rsid = reqStr(args, 'rsid');
-  const res = await pwFetch(`${BASE}/singleNucleotidePolymorphisms/${encodeURIComponent(rsid)}`, {
+  const res = await pwFetch(`${BASE}/single-nucleotide-polymorphisms?rs_id=${encodeURIComponent(rsid)}`, {
     headers: { Accept: 'application/json', 'User-Agent': UA },
   });
-  if (res.status === 404) return { error: 'SNP not found', rsid };
   if (!res.ok) return { error: `GWAS Catalog: ${res.status} ${(await res.text()).slice(0, 200)}` };
   const data = (await res.json()) as any;
+  const snp = (data?._embedded?.snps || [])[0];
+  if (!snp) return { error: 'SNP not found', rsid };
+
+  // Gene distance/direction is a separate v2 sub-resource (v1 embedded it
+  // directly on the SNP as `genomicContexts`). One extra bounded fetch.
+  let genes: Array<Record<string, unknown>> = [];
+  const gcRes = await pwFetch(`${BASE}/single-nucleotide-polymorphisms/${encodeURIComponent(rsid)}/genomic-contexts`, {
+    headers: { Accept: 'application/json', 'User-Agent': UA },
+  });
+  if (gcRes.ok) {
+    const gcData = (await gcRes.json()) as any;
+    genes = (gcData?._embedded?.genomic_contexts || []).map((g: any) => ({
+      gene: g?.gene?.gene_name,
+      distance: g?.distance,
+      upstream: g?.is_upstream,
+      downstream: g?.is_downstream,
+    }));
+  }
+
   return {
-    rsid: data?.rsId,
-    functional_class: data?.functionalClass,
-    locations: (data?.locations || []).map((l: any) => ({
-      chromosome: l?.chromosomeName,
-      position: l?.chromosomePosition,
+    rsid: snp?.rs_id,
+    functional_class: snp?.functional_class,
+    locations: (snp?.locations || []).map((l: any) => ({
+      chromosome: l?.chromosome_name,
+      position: l?.chromosome_position,
       region: l?.region?.name,
     })),
-    genes: (data?.genomicContexts || []).map((g: any) => ({
-      gene: g?.gene?.geneName,
-      distance: g?.distance,
-      upstream: g?.isUpstream,
-      downstream: g?.isDownstream,
-    })),
+    genes,
   };
 }
 
 async function snpAssociations(args: Record<string, unknown>): Promise<unknown> {
   const rsid = reqStr(args, 'rsid');
   const limit = numOr(args.limit, 20);
-  const res = await pwFetch(`${BASE}/singleNucleotidePolymorphisms/${encodeURIComponent(rsid)}/associations`, {
-    headers: { Accept: 'application/json', 'User-Agent': UA },
-  });
-  if (res.status === 404) return { error: 'SNP not found', rsid };
+  const res = await pwFetch(
+    `${BASE}/associations?rs_id=${encodeURIComponent(rsid)}&size=${encodeURIComponent(String(limit))}`,
+    { headers: { Accept: 'application/json', 'User-Agent': UA } },
+  );
   if (!res.ok) return { error: `GWAS Catalog: ${res.status} ${(await res.text()).slice(0, 200)}` };
   const data = (await res.json()) as any;
   const list: any[] = data?._embedded?.associations || [];
-  const associations = list.slice(0, limit).map((a: any) => {
-    let riskAllele: string | undefined;
-    for (const locus of a?.loci || []) {
-      const allele = (locus?.strongestRiskAlleles || [])[0]?.riskAlleleName;
-      if (allele) {
-        riskAllele = allele;
-        break;
-      }
-    }
-    return {
-      risk_allele: riskAllele,
-      pvalue: a?.pvalue,
-      or_per_copy: a?.orPerCopyNum,
-      beta: a?.betaNum,
-      beta_unit: a?.betaUnit,
-      risk_frequency: a?.riskFrequency,
-    };
-  });
+  if (list.length === 0) return { error: 'SNP not found', rsid };
+  const associations = list.slice(0, limit).map((a: any) => ({
+    risk_allele: (a?.snp_allele || [])[0]?.effect_allele ?? (a?.snp_effect_allele || [])[0],
+    pvalue: a?.p_value,
+    or_per_copy: a?.or_per_copy_num,
+    beta: a?.beta,
+    risk_frequency: a?.risk_frequency,
+  }));
   return { rsid, count: associations.length, associations };
 }
 
 async function studiesByTrait(args: Record<string, unknown>): Promise<unknown> {
   const trait = reqStr(args, 'trait');
   const limit = numOr(args.limit, 10);
-  const url = `${BASE}/studies/search/findByEfoTrait?efoTrait=${encodeURIComponent(trait)}&size=${encodeURIComponent(
-    String(limit),
-  )}`;
+  const url = `${BASE}/studies?efo_trait=${encodeURIComponent(trait)}&size=${encodeURIComponent(String(limit))}`;
   const res = await pwFetch(url, { headers: { Accept: 'application/json', 'User-Agent': UA } });
   if (!res.ok) return { error: `GWAS Catalog: ${res.status} ${(await res.text()).slice(0, 200)}` };
   const data = (await res.json()) as any;
   const list: any[] = data?._embedded?.studies || [];
-  const studies = list.map((s: any) => ({
-    accession: s?.accessionId,
-    trait: s?.diseaseTrait?.trait,
-    pubmed_id: s?.publicationInfo?.pubmedId,
-    title: s?.publicationInfo?.title,
-    journal: s?.publicationInfo?.publication,
-    date: s?.publicationInfo?.publicationDate,
-    sample_size: s?.initialSampleSize,
-  }));
+
+  // v2 split publication title/journal/date into a dedicated /v2/publications
+  // resource (v1 embedded it on the study as `publicationInfo`). Bounded
+  // hydration — at most `limit` extra fetches, same N+1 shape metmuseum
+  // already uses for per-object detail.
+  const studies = await Promise.all(
+    list.map(async (s: any) => {
+      let title: unknown;
+      let journal: unknown;
+      let date: unknown;
+      const pmid = s?.pubmed_id;
+      if (pmid) {
+        const pubRes = await pwFetch(`${BASE}/publications/${encodeURIComponent(String(pmid))}`, {
+          headers: { Accept: 'application/json', 'User-Agent': UA },
+        });
+        if (pubRes.ok) {
+          const pub = (await pubRes.json()) as any;
+          title = pub?.title;
+          journal = pub?.journal;
+          date = pub?.publication_date;
+        }
+      }
+      return {
+        accession: s?.accession_id,
+        trait: s?.efo_traits?.[0]?.efo_trait ?? s?.disease_trait,
+        pubmed_id: pmid,
+        title,
+        journal,
+        date,
+        sample_size: s?.initial_sample_size,
+      };
+    }),
+  );
   return { trait, count: studies.length, total: data?.page?.totalElements, studies };
 }
 
