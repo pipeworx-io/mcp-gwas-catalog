@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.pipeworx-io/gwas-catalog",
   "title": "Gwas Catalog",
-  "description": "GWAS Catalog (EBI/NHGRI) MCP — curated catalog of genome-wide association studies.",
-  "version": "0.1.3",
+  "description": "GWAS Catalog (EBI/NHGRI) MCP — curated catalog of genome-wide association studies. Look up a SNP…",
+  "version": "0.1.4",
   "websiteUrl": "https://pipeworx.io/packs/gwas-catalog",
   "repository": {
     "url": "https://github.com/pipeworx-io/mcp-gwas-catalog",
