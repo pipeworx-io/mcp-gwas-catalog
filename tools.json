@@ -1,0 +1,58 @@
+[
+  {
+    "name": "get_snp",
+    "description": "GWAS Catalog: look up a single-nucleotide polymorphism (SNP) by rsID. Returns functional class, chromosome/region locations, and mapped genes (with up/downstream + distance). Keyless, from EBI/NHGRI.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "rsid": {
+          "type": "string",
+          "description": "dbSNP rsID, e.g. \"rs7329174\"."
+        }
+      },
+      "required": [
+        "rsid"
+      ]
+    }
+  },
+  {
+    "name": "snp_associations",
+    "description": "GWAS Catalog: get trait/disease associations for a SNP (rsID) — risk allele, p-value, odds ratio per copy, beta/effect size, and risk allele frequency. Keyless, from EBI/NHGRI.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "rsid": {
+          "type": "string",
+          "description": "dbSNP rsID, e.g. \"rs7329174\"."
+        },
+        "limit": {
+          "type": "number",
+          "description": "Max associations to return (default 20)."
+        }
+      },
+      "required": [
+        "rsid"
+      ]
+    }
+  },
+  {
+    "name": "studies_by_trait",
+    "description": "GWAS Catalog: find genome-wide association studies for a disease/trait (EFO trait, e.g. \"asthma\" or \"type 2 diabetes\"). Returns accession, PubMed ID, title, journal, date, sample size. Keyless, from EBI/NHGRI.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "trait": {
+          "type": "string",
+          "description": "Disease or trait name, e.g. \"asthma\", \"type 2 diabetes\"."
+        },
+        "limit": {
+          "type": "number",
+          "description": "Max studies to return (default 10)."
+        }
+      },
+      "required": [
+        "trait"
+      ]
+    }
+  }
+]

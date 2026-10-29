@@ -1,12 +1,20 @@
 {
   "name": "@pipeworx/mcp-gwas-catalog",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "GWAS Catalog (EBI/NHGRI) MCP — curated catalog of genome-wide association studies. Look up a SNP (rsID) and its mapped genes, get trait associations + p-values/effect sizes for a SNP, or find studies for a disease/trait. Keyless REST API.",
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./tools.json": "./tools.json",
+    "./package.json": "./package.json"
+  },
   "bin": {
     "mcp-gwas-catalog": "bin/cli.js"
+  },
+  "files": ["bin/", "lib/", "tools.json", "server.json"],
+  "engines": {
+    "node": ">=18"
   },
   "keywords": ["mcp", "mcp-server", "model-context-protocol", "pipeworx", "gwas-catalog"],
   "license": "MIT",
@@ -14,19 +22,12 @@
     "type": "git",
     "url": "git+https://github.com/pipeworx-io/mcp-gwas-catalog.git"
   },
-  "scripts": {
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
-    "tsx": "^4.19.0"
-  },
-  "devDependencies": {
-    "typescript": "^5.9.3",
-    "@cloudflare/workers-types": "^4.20260405.1"
-  },
+  "mcpName": "io.github.pipeworx-io/gwas-catalog",
   "pipeworx": {
-    "sourceHash": "v1-d8238d8368f87748995c5e15eca7d9074df850ccfb40edf4884cdf3da35e8053",
-    "sourceCommit": "24e32b525f9c0b2fd7d94b519b08abb108cc11cd"
+    "mode": "gateway",
+    "slug": "gwas-catalog",
+    "gatewaySlug": "gwas-catalog",
+    "sourceHash": "v1-d1a31f62436f837c2728435f8ca7ffcabf2eb46edf0eb0d77ad26a3bce022a1f",
+    "sourceCommit": "4844029e402d6bd2fe735add8abf6d46735f8ed5"
   }
 }
