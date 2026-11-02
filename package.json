@@ -1,6 +1,6 @@
 {
   "name": "@pipeworx/mcp-gwas-catalog",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "GWAS Catalog (EBI/NHGRI) MCP — curated catalog of genome-wide association studies. Look up a SNP (rsID) and its mapped genes, get trait associations + p-values/effect sizes for a SNP, or find studies for a disease/trait. Keyless REST API.",
   "type": "module",
   "main": "lib/index.js",
@@ -27,7 +27,7 @@
     "mode": "gateway",
     "slug": "gwas-catalog",
     "gatewaySlug": "gwas-catalog",
-    "sourceHash": "v1-d1a31f62436f837c2728435f8ca7ffcabf2eb46edf0eb0d77ad26a3bce022a1f",
-    "sourceCommit": "4844029e402d6bd2fe735add8abf6d46735f8ed5"
+    "sourceHash": "v1-cd306157e95c213fc93309e30704f80d5eec02cd618f1232092aae540a225ef9",
+    "sourceCommit": "0ca9712c0ac03bb0121cc7e81b202d0c45ac02ca"
   }
 }
